@@ -30,7 +30,7 @@ default_dict = dict(
         button_height=dict(active=True, value=21),
     ),
     stylesheets=dict(
-        main=dict(active=True, value='background-color: rgb(10,40,60) ; color: (200,200,250)')
+        main=dict(active=True, value='background-color: rgb(30,30,40) ; color: white')
     ),
     images=dict(
     ),
@@ -1061,7 +1061,8 @@ class ViktorinoxTechClass:
 
     @staticmethod
     def make_image_into_blob(image_path, width=None, height=None, quality=70, method=6):
-        image = Image.open(image_path)
+        try: image = Image.open(image_path)
+        except: return False
 
         if width and image.size[0] < width:
             height = round(image.size[1] * (width / image.size[0]))

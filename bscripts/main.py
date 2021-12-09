@@ -29,6 +29,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gpg_lock = True
         self.verification = False
         super().__init__()
+        style(self, name='main')
         self.statusbar = self.statusBar()
         signal = t.signals(name='statusbar')
         signal.smoke.connect(self.status_message)
@@ -81,7 +82,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 def mouseMoveEvent(self, ev: QtGui.QMouseEvent) -> None:
                     self.drag_widget(ev)
 
-                def mousePressEvent(self, ev: QtGui.QMouseEvent) -> None:
+                def mouseReleaseEvent(self, ev: QtGui.QMouseEvent) -> None:
                     if ev.button() == 2:
                         self.parent.activation_toggle(force=False)
                         self.hide()
@@ -120,7 +121,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 btclabel = GODLabel(place=self.about, center=True)
                 btclabel.setText(a)
                 btclabel.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-                style(btclabel, color=BLACK)
+                style(btclabel, color=BLACK, background=WHITE)
                 t.shrink_label_to_text(btclabel, x_margin=10, y_margin=4)
                 t.pos(btclabel, below=pixmap_label, center=[0, self.about.width()], height=btclabel, add=4, y_margin=-5)
 
