@@ -8,5 +8,6 @@ If you ended up here you're probably familiar with what Pastebin.com is and that
 * GPG Signing messages support
 * POST/DELETE/UPDATE/SAVE pastes
 * Stores browsed pastes locally
+* Handles files/folders using ZIP and GPG
 
 I've only tested this on my own Linux machine and have no clue what happens if you feed into another one. I assume that GPG features are discouraged by MAC and Windows operating systems, but who knows. 
