@@ -415,13 +415,18 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 elif error:
                     style(self, color=HIGH_RED)
 
-                pos(self, width=self, add=20)
-                t.correct_broken_font_size(self)
                 t.shrink_label_to_text(self, x_margin=10)
 
+                if not self.fontlock and self.text():
+                    pos(self, width=self.left.width() / 2)
+                    t.correct_broken_font_size(self)
+                    t.shrink_label_to_text(self, x_margin=10)
+                    self.fontlock = True
+
         self.url_label = URLLabel(place=self, qframebox=True)
+        self.url_label.left = self.left
         self.url_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
-        self.url_label.default_color_and_size()
+        self.url_label.fontlock = False
 
     def show_active_gpg_keys(self):
         keys = get_activated_gpg_keys()
@@ -578,7 +583,6 @@ One thing that might not be crystal clear is that in the settings you can drag a
             label.privacy = v
             label.setText(k)
             label.privacy_buttons = self.privacy_buttons
-            t.correct_broken_font_size(label, x_margin=6, y_margin=10)
             self.privacy_buttons.append(label)
 
     def position_mainwindow(self, primary=True):
@@ -590,7 +594,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
 
                 x = int(primary.x)
                 y = int(primary.y)
-                w = int(primary.width * 0.6)
+                w = int(primary.width * 0.7)
                 h = int(primary.height * 0.8)
 
                 self.move(x + int(primary.width * 0.1), y + (int(primary.height * 0.1)))
@@ -636,8 +640,10 @@ One thing that might not be crystal clear is that in the settings you can drag a
         for count, i in enumerate(self.privacy_buttons):
             if count == 0:
                 pos(i, after=self.encryption, height=BUTTONHEIGHT, width=BUTTONHEIGHT * 3, x_margin=2)
+                font = t.correct_broken_font_size(i, x_margin=10, y_margin=2)
             else:
                 pos(i, coat=self.privacy_buttons[count-1], after=self.privacy_buttons[count-1], x_margin=-1)
+            style(i, font=font-1)
 
         # SLIDER >
         reach = dict(right=dict(right=self.titlebar_widget))
@@ -1122,10 +1128,11 @@ One thing that might not be crystal clear is that in the settings you can drag a
         self.titlebar = self.titlebar_widget.lineedit
 
     def free_search(self):
-        text = self.searchbar.text().strip()
+        text = self.searchbar.lineedit.text()
         data = sqlite.execute('select * from pastes', all=True)
         data = t.uni_search(data, text, DB.pastes.paste_title)
         if data:
+            t.close_and_pop(self.left.widgets)
             self.draw_my_pastes(data=data)
 
     class EncryptionToggle(GODLabel, GLOBALHighLight):
