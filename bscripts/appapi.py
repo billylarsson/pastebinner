@@ -33,6 +33,24 @@ def api_calls(self):
                 data = [x for x in data if x[DB.pastes.paste_title].lower().find(header.lower()) > -1]
                 data = [x for x in data if not x[DB.pastes.paste_expire_date] or x[DB.pastes.paste_expire_date] > epoch]
 
+                if len(data) == 0 and '-n' in orders:
+                    # todo this is an ugly hack, not sure how/if its urgent to fix >
+
+                    print("GENERATING A FAKE PASTE TO BUILD ON! // -n switch")
+
+                    class FAKE:
+                        query, data = sqlite.empty_insert_query('pastes')
+
+                    fakewidget = FAKE()
+                    fakewidget.data[DB.pastes.paste_private] = 2
+                    fakewidget.data[DB.pastes.contents] = ""
+                    fakewidget.update_button = fakewidget
+                    fakewidget.update_button.generate_and_post_paste = self.post.generate_and_post_paste
+
+                    self.titlebar.setText(header)
+
+                    return fakewidget
+
                 if len(data) == 1:
                     output_found_one_match(header, data)
                     t.close_and_pop(self.left.widgets)
@@ -55,11 +73,7 @@ def api_calls(self):
                 break
 
 
-    def update_widget_add_args_text(self, widget, orders):
-        widget.show_all_but_text()
-        widget.show_deletebutton()
-        widget.show_update_button()
-
+    def make_paste_from_args(self, orders, widget):
         for count, i in enumerate(orders[0:-1]):
             if i == '--text':
 
@@ -87,17 +101,27 @@ def api_calls(self):
                 response_url = widget.update_button.generate_and_post_paste(**kwargs)
                 if response_url:
                     print("PASTE OK")
-                    print("DELETING OLD PASTE")
-                    widget.update_button.delete_paste_remote_and_locally()
                     return response_url
                 else:
                     print("PASTE FAILED")
 
+    def update_widget_add_args_text(self, orders, widget):
+        widget.show_all_but_text()
+        widget.show_deletebutton()
+        widget.show_update_button()
+        return make_paste_from_args(self, orders, widget)
 
     if '-a' or '-r' in orders and '--header' in orders and '--text' in orders:
         widget = get_refreshed_widget_from_title(self, orders)
-        if widget:
-            response_url = update_widget_add_args_text(self, widget, orders)
+        if widget and widget.data[0]: # todo ugly hack
+            response_url = update_widget_add_args_text(self, orders, widget)
+            if response_url:
+                print("DELETING OLD PASTE")
+                widget.update_button.delete_paste_remote_and_locally()
+                print(f'\n{response_url}\n\nJOBS DONE!')
+
+        elif widget and not widget.data[0]: # todo ugly hack
+            response_url = make_paste_from_args(self, orders, widget)
             if response_url:
                 print(f'\n{response_url}\n\nJOBS DONE!')
 
@@ -106,6 +130,7 @@ def api_help_print():
     d = []
     d.append(dict(key='USAGE', text='python3 pastebinner.py -a -e --header="reddit/r/nintendo" --text "#switch-hacks"'))
     d.append(dict(key='-a', text='Appends text'))
+    d.append(dict(key='-n', text='If none exists, create new'))
     d.append(dict(key='-e', text='Encrypt this text (doesnt touch present text)'))
     d.append(dict(key='-r', text='Replace present text with current text only'))
     d.append(dict(key='--header', text='Header that must match present headers (titles)'))
