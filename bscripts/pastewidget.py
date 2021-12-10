@@ -252,8 +252,8 @@ class PasteWidget(GODLabel):
 
     class UpdateButton(GODLabel, GLOBALHighLight):
         def update_delete_overwrite(self):
-            self.generate_and_post_paste()
-            self.delete_paste_remote_and_locally()
+            if self.generate_and_post_paste():
+                self.delete_paste_remote_and_locally()
 
         def mousePressEvent(self, ev: QtGui.QMouseEvent) -> None:
             self.update_delete_overwrite()

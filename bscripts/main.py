@@ -11,6 +11,7 @@ from bscripts.settings_widgets import Canvas, DragDroper, GLOBALHighLight
 from bscripts.settings_widgets import GODLabel, MovableScrollWidget
 from bscripts.settings_widgets import create_indikator
 from bscripts.tricks           import tech as t
+from bscripts.appapi import api_calls,api_help_print
 import os, time
 import pathlib
 import screeninfo
@@ -24,7 +25,9 @@ BUTTONHEIGHT = t.config('button_height')
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
-        if 'dev_mode' in sys.argv: sqlite.dev_mode = True
+        if 'dev_mode' in sys.argv:
+            sqlite.dev_mode = True
+
         self.steady = False
         self.gpg_lock = True
         self.verification = False
@@ -35,8 +38,22 @@ class MainWindow(QtWidgets.QMainWindow):
         signal.smoke.connect(self.status_message)
         self.setWindowTitle(os.environ['PROGRAM_NAME'] + ' ' + os.environ['VERSION'])
         get_credentials() # cache them so future threads can bypass sqlite when getting credentials
-        self.show()
-        t.start_thread(dummy=True, master_fn=self.post_init)
+        init_fn = [self.post_init]
+
+        if len(sys.argv) > 1:
+            if not [x for x in sys.argv if '--' in x]:
+                self.show()
+            else:
+                init_fn.append(self.subprocess_api)
+
+        t.start_thread(dummy=True, master_fn=init_fn)
+
+    def subprocess_api(self):
+        api_calls(self)
+        if '--help' in sys.argv:
+            api_help_print()
+
+        sys.exit()
 
     def status_message(self, smokesignal):
         self.statusbar.showMessage(smokesignal['string'], smokesignal['timer'])
@@ -906,7 +923,10 @@ One thing that might not be crystal clear is that in the settings you can drag a
                     self.create_lineedit_thing(tiplabel='PASSWORD', type='password', **kwargs)
                     self.create_lineedit_thing(tiplabel='API KEY', type='api_key', **kwargs)
                     [x.lineedit.text_changed() for x in self.child.widgets]
-                    self.create_label_thing(text='SHOW EXPIRED', type='show_expired', special=self.LabelSetting)
+                    tt = 'Discards posts whos expiredate has passed'
+                    self.create_label_thing(text='SHOW EXPIRED', type='show_expired', special=self.LabelSetting, tooltip=tt)
+                    tt = 'Titles starting with _ are discarded from view (still stored in DB)'
+                    self.create_label_thing(text='DISCARD _UNDERS', type='discard_under', special=self.LabelSetting, tooltip=tt)
                     kwargs = dict(special=self.IMGSetting, drops=True)
                     self.create_label_thing(text='PRIVATE IMAGE', type='img_private', **kwargs)
                     self.create_label_thing(text='SECRET IMAGE', type='img_secret', **kwargs)
@@ -1049,13 +1069,38 @@ One thing that might not be crystal clear is that in the settings you can drag a
             else:
                 return False
 
-        def generate_and_post_paste(self, text=None, head=None, foot=None):
-            privacy = 0
-            expire = self.slider_btn.current['value']
-            title = self.titlebar.text().strip()
-            if not text: text = self.qtextedit.toPlainText()
-            text = self.apply_gpg_encryption(text)
-            text = self.apply_gpg_signature(text)
+        def generate_and_post_paste(self,
+                                    text=None,
+                                    head=None,
+                                    foot=None,
+                                    privacy=-1,
+                                    title=None,
+                                    expire=None,
+                                    ask_for_encryption=True,
+                                    ask_for_signature=True,
+                                    ):
+            if privacy == -1:
+                for k, v in dict(PUBLIC=0, SECRET=1, PRIVATE=2).items():
+                    if t.config(k):
+                        privacy = v
+                if privacy == -1:
+                    privacy = 0
+
+            if not expire:
+                expire = self.slider_btn.current['value']
+
+            if not title:
+                title = self.titlebar.text().strip()
+
+            if not text:
+                text = self.qtextedit.toPlainText()
+
+            if ask_for_encryption:
+                text = self.apply_gpg_encryption(text)
+
+            if ask_for_signature:
+                text = self.apply_gpg_signature(text)
+
             if head:
                 text = head + '\n' + text
 
@@ -1063,9 +1108,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 text += '\n' + foot
 
             if text:
-                for k, v in dict(PUBLIC=0, SECRET=1, PRIVATE=2).items():
-                    if t.config(k):
-                        privacy = v
+
                 response = api_communicate(text=text, title=title, expire=expire, privacy=privacy)
                 if response:
                     tmp = response.split('/')
@@ -1080,6 +1123,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
                             values[DB.pastes.paste_private] = privacy
                             values[DB.pastes.paste_date] = int(time.time())
                             values[DB.pastes.paste_size] = len(text)
+                            values[DB.pastes.contents] = text
                             dbid = sqlite.execute(query, values=values)
                             data = sqlite.execute('select * from pastes where id is (?)', dbid)
                             if data:
@@ -1091,7 +1135,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
                                     new.activation_toggle(force=True)
                                     new.swap_colors()
                                     new.show_all_but_text()
-                            return True
+                            return response
 
             self.url_label.setText('ERROR!!!')
             self.url_label.default_color_and_size(error=True)
@@ -1224,6 +1268,9 @@ One thing that might not be crystal clear is that in the settings you can drag a
         if not t.config('show_expired'):
             epoch = time.time()
             data = [x for x in data if not x[DB.pastes.paste_expire_date] or x[DB.pastes.paste_expire_date] > epoch]
+
+        if t.config('discard_under'):
+            data = [x for x in data if not x[DB.pastes.paste_title] or x[DB.pastes.paste_title][0] != '_']
 
         for i in data:
             paste = PasteWidget(place=self.left.backplate, main=self, parent=self, data=i)
