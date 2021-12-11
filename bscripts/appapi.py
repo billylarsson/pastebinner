@@ -54,7 +54,7 @@ def api_calls(self):
                 if len(data) == 1:
                     output_found_one_match(header, data)
                     t.close_and_pop(self.left.widgets)
-                    self.draw_my_pastes(data=data)
+                    self.draw_my_pastes(data=data, accept_unders=True)
                     if len(self.left.widgets) == 1:
                         print(f"\nSYNCRONIZING {data[0][DB.pastes.paste_url]} WITH PASTEBIN SEVERS ...")
                         widget = self.left.widgets[0]

@@ -40,19 +40,18 @@ class MainWindow(QtWidgets.QMainWindow):
         get_credentials() # cache them so future threads can bypass sqlite when getting credentials
         init_fn = [self.post_init]
 
-        if len(sys.argv) > 1:
-            if not [x for x in sys.argv if '--' in x]:
-                self.show()
-            else:
-                init_fn.append(self.subprocess_api)
+        if len(sys.argv) > 1 and [x for x in sys.argv if '--' in x]:
+            init_fn.append(self.subprocess_api)
+        else:
+            self.show()
 
         t.start_thread(dummy=True, master_fn=init_fn)
 
     def subprocess_api(self):
-        api_calls(self)
         if '--help' in sys.argv:
             api_help_print()
 
+        api_calls(self)
         sys.exit()
 
     def status_message(self, smokesignal):
@@ -1258,7 +1257,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
         if highlight: master_fns.append(highlight_this_pastekey)
         t.start_thread(thread_gather_response, self, master_fn=master_fns, master_args=self)
 
-    def draw_my_pastes(self, data=None):
+    def draw_my_pastes(self, data=None, accept_unders=False):
         if not data:
             t.close_and_pop(self.left.widgets)
             data = sqlite.execute('select * from pastes', all=True)
@@ -1269,7 +1268,7 @@ One thing that might not be crystal clear is that in the settings you can drag a
             epoch = time.time()
             data = [x for x in data if not x[DB.pastes.paste_expire_date] or x[DB.pastes.paste_expire_date] > epoch]
 
-        if t.config('discard_under'):
+        if t.config('discard_under') and not accept_unders:
             data = [x for x in data if not x[DB.pastes.paste_title] or x[DB.pastes.paste_title][0] != '_']
 
         for i in data:
