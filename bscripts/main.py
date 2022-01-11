@@ -12,7 +12,7 @@ from bscripts.settings_widgets import GODLabel, MovableScrollWidget
 from bscripts.settings_widgets import create_indikator
 from bscripts.tricks           import tech as t
 from bscripts.appapi import api_calls,api_help_print
-import os, time
+import os, time, distro
 import pathlib
 import screeninfo
 import shutil
@@ -405,10 +405,14 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 return
 
         text = self.right.qtextedit.toPlainText()
+
         if '-----BEGIN PGP MESSAGE-----' in text:
             rv = decrypt_text_message(text)
 
-            if rv:
+            if distro.linux_distribution()[0].find('Mint') == -1:
+                rv = [str(x) for x in rv]
+
+            elif rv:
                 try: [str(x) for x in rv if x]
                 except:
                     t.statusbar(message='Banana could be broken, banana could be zipfile!')
@@ -431,15 +435,15 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 elif error:
                     style(self, color=HIGH_RED)
 
-                t.shrink_label_to_text(self, x_margin=10)
+                t.shrink_label_to_text(self, x_margin=10, y_margin=10)
 
                 if not self.fontlock and self.text():
                     pos(self, width=self.left.width() / 2)
                     t.correct_broken_font_size(self)
-                    t.shrink_label_to_text(self, x_margin=10)
+                    t.shrink_label_to_text(self, x_margin=10, y_margin=10)
                     self.fontlock = True
 
-        self.url_label = URLLabel(place=self, qframebox=True)
+        self.url_label = URLLabel(place=self, qframebox=True, center=True)
         self.url_label.left = self.left
         self.url_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
         self.url_label.fontlock = False
@@ -1060,8 +1064,10 @@ One thing that might not be crystal clear is that in the settings you can drag a
                 return text
 
             rv = encrypt_message(text)
-            if not rv or not rv.ok:
-                return False
+
+            if type(rv) != str:
+                if not rv or not rv.ok:
+                    return False
 
             if str(rv) != str(text): # we want input to differ from output, else not encrypted
                 return str(rv)

@@ -2,6 +2,7 @@ from bscripts.tricks import tech as t
 import gnupg
 import os
 import time
+import subprocess
 
 def return_gpg_state():
     homedir = os.path.expanduser('~')
@@ -11,8 +12,11 @@ def return_gpg_state():
     if not os.path.exists(loc.full_path):
         return False
 
-    try: gpg_connection = gnupg.GPG(homedir=loc.full_path)
-    except: gpg_connection = gnupg.GPG(gnupghome=loc.full_path)
+    cs_gpg_options = ['--pinentry-mode loopback'] # dont know why V2 had this
+
+    try: gpg_connection = gnupg.GPG(homedir=loc.full_path, options=cs_gpg_options)
+    except: gpg_connection = gnupg.GPG(gnupghome=loc.full_path, options=cs_gpg_options)
+
     gpg_connection.encoding = 'utf-8'
 
     return gpg_connection
@@ -22,6 +26,7 @@ def get_all_gpg_keys():
     if gpg:
 
         all_keys = gpg.list_keys()
+
         sorter = {}
         for c in range(len(all_keys)):
             thiskey = all_keys[c]
@@ -57,6 +62,34 @@ def get_activated_gpg_keys():
 
     return [x for x in keys if t.config(x['data']['keyid'])]
 
+def arch_linux_fix(contents, fingerprints):
+    tmpfile_input = t.tmp_file('fuck_duck_input', hash=True, delete=True, extension='asc')
+    tmpfile_output = t.tmp_file('fuck_duck_output', hash=True, delete=True, extension='asc')
+
+    if type(contents) == str:
+        flag = 'w'
+    else:
+        flag = 'wb'
+
+    with open(tmpfile_input, flag) as f:
+        f.write(contents)
+
+    query = ['gpg', '-se', '-a']
+    for i in fingerprints:
+        query.append('-r')
+        query.append(i)
+
+    query += ['-o', tmpfile_output, '--trust-model', 'always', tmpfile_input]
+
+    subprocess.run(query)
+    with open(tmpfile_output, 'r') as f:
+        data = f.read()
+    
+    os.remove(tmpfile_output)
+    os.remove(tmpfile_input)
+
+    return data
+
 def encrypt_message(contents, fingerprints=None):
 
     def just_encrypt(file_or_text, list_with_fingerprints):
@@ -87,7 +120,9 @@ def encrypt_message(contents, fingerprints=None):
         if len(encrypted_contents.data) > 0:
             return encrypted_contents
 
-    return False
+    rv = arch_linux_fix(contents=contents, fingerprints=fingerprints)
+    
+    return rv
 
 def sign_message(text):
     gpg = return_gpg_state()
@@ -133,9 +168,15 @@ def decrypt_text_message(org_content):
         encrypted_text = org_content[0:cut2 + len(str2)]
         decrypted_text = gpg_state.decrypt(encrypted_text)
 
-        if decrypted_text:
-            rv_text.append(decrypted_text)
-        else:
+        try:
+            if type(decrypted_text.data) == bytes:
+                rv_text.append(decrypted_text)
+            else:
+                try: 
+                    rv_text.append(str(decrypted_text))
+                except: 
+                    rv_text.append(False)
+        except:
             rv_text.append(False)
 
         org_content = org_content[cut2 + len(str2):]

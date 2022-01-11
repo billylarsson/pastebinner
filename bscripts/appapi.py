@@ -13,7 +13,7 @@ def api_calls(self):
         for k, v in dict(PUBLIC=0, SECRET=1, PRIVATE=2).items():
             if v == pastes[0][DB.pastes.paste_private]:
                 text += f'PRIVACY: {k}'
-        text += f'LAST UPDATED: {t.timeconverter(pastes[0][DB.pastes.paste_date], long=True)}\n'
+        text += f'\nLAST UPDATED: {t.timeconverter(pastes[0][DB.pastes.paste_date], long=True)}\n'
         print(text)
 
     def get_refreshed_widget_from_title(self, orders):
@@ -97,7 +97,8 @@ def api_calls(self):
 
                 self.right.qtextedit.setText(text)
                 print('PASSING POST REQUEST TO PASTEBIN SEVERS ...')
-                kwargs = dict(ask_for_encryption=False, ask_for_signature=False, expire='N')
+                privacy = widget.data[DB.pastes.paste_private]
+                kwargs = dict(ask_for_encryption=False, ask_for_signature=False, expire='N', privacy=privacy)
                 response_url = widget.update_button.generate_and_post_paste(**kwargs)
                 if response_url:
                     print("PASTE OK")
